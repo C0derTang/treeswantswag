@@ -9,41 +9,26 @@ import {
 import { createPortal } from 'react-dom'
 import {
   collection,
-  limit,
   onSnapshot,
   orderBy,
   query,
 } from 'firebase/firestore'
 import { getDb } from '../lib/firebase'
-import { DUMMY_COUNT, getDummyTestimonials } from '../lib/dummyTestimonials'
 import type { TestimonialItem } from '../types/testimonials'
 
 type Props = {
   firebaseConfigured: boolean
 }
 
-function mergeWithDummies(reals: TestimonialItem[]): TestimonialItem[] {
-  const dummies = getDummyTestimonials()
-  const out: TestimonialItem[] = []
-  for (let i = 0; i < DUMMY_COUNT; i++) {
-    const r = reals[i]
-    if (r) {
-      out.push({ ...r, isDummy: false })
-    } else {
-      out.push(dummies[i])
-    }
-  }
-  return out
-}
-
-/** Fill rows sequentially so latest items stay in the top row. */
-function splitIntoRows<T>(items: T[], rowCount: number): T[][] {
-  const perRow = Math.ceil(items.length / rowCount)
-  const rows: T[][] = []
-  for (let r = 0; r < rowCount; r++) {
-    rows.push(items.slice(r * perRow, (r + 1) * perRow))
-  }
-  return rows
+/**
+ * Each row gets ALL items but rotated by a different offset so rows
+ * start on different cards, creating a mosaic effect.
+ */
+function offsetForRow<T>(items: T[], rowIndex: number): T[] {
+  const n = items.length
+  if (n <= 1) return items
+  const shift = Math.floor(n / 3 + rowIndex * n * 0.37) % n
+  return [...items.slice(shift), ...items.slice(0, shift)]
 }
 
 function stripWidthPx(itemCount: number, cardWidth: number, gap: number): number {
@@ -171,7 +156,6 @@ function Card({
   cardWidth: number
   textClass: string
 }) {
-  const isDummy = Boolean(item.isDummy)
   const majorLabel = item.major && item.major !== 'Undeclared'
     ? `Incoming ${item.major} Major`
     : 'Incoming Undeclared Major'
@@ -186,41 +170,31 @@ function Card({
       }}
     >
       <article
-        title={!isDummy ? 'Tap to read full testimonial' : undefined}
-        className={`relative h-full overflow-hidden rounded-2xl border bg-white/95 p-2 shadow-[0_18px_40px_-10px_rgba(15,40,30,0.32),0_6px_12px_-6px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-2.5 ${
-          isDummy
-            ? 'border-dashed border-stone-300/80 border-opacity-90'
-            : 'border-stone-200 ring-1 ring-cardinal/15'
-        }`}
+        title="Tap to read full testimonial"
+        className="relative h-full overflow-hidden rounded-2xl border border-stone-200 bg-white/95 p-2 shadow-[0_18px_40px_-10px_rgba(15,40,30,0.32),0_6px_12px_-6px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-cardinal/15 sm:p-2.5"
       >
-        <div
-          className={`aspect-square overflow-hidden rounded-xl ring-1 ring-inset ${
-            isDummy ? 'bg-stone-100/80 ring-stone-200/60' : 'ring-stone-200/80'
-          }`}
-        >
+        <div className="aspect-square overflow-hidden rounded-xl ring-1 ring-inset ring-stone-200/80">
           {item.photoDataUrl ? (
             <img
               src={item.photoDataUrl}
               alt=""
               draggable={false}
-              className={`pointer-events-none h-full w-full object-cover transition-opacity duration-700 ${isDummy ? 'opacity-90' : 'opacity-100'}`}
+              className="pointer-events-none h-full w-full object-cover"
             />
           ) : null}
         </div>
 
-        {!isDummy && (
-          <div className="testimonial-text-reveal mt-1.5 space-y-0.5 sm:mt-2">
-            <p className={`font-display font-semibold text-stone-900 ${textClass}`}>
-              {item.displayName}
-            </p>
-            <p className={`leading-snug text-cardinal/70 ${textClass}`}>
-              {majorLabel}
-            </p>
-            <p className={`line-clamp-3 leading-relaxed text-stone-600 ${textClass}`}>
-              &ldquo;{item.quote}&rdquo;
-            </p>
-          </div>
-        )}
+        <div className="testimonial-text-reveal mt-1.5 space-y-0.5 sm:mt-2">
+          <p className={`font-display font-semibold text-stone-900 ${textClass}`}>
+            {item.displayName}
+          </p>
+          <p className={`leading-snug text-cardinal/70 ${textClass}`}>
+            {majorLabel}
+          </p>
+          <p className={`line-clamp-3 leading-relaxed text-stone-600 ${textClass}`}>
+            &ldquo;{item.quote}&rdquo;
+          </p>
+        </div>
       </article>
     </div>
   )
@@ -384,7 +358,7 @@ function DraggableMarqueeRow({
         const id = node?.dataset.testimonialId
         if (id) {
           const picked = items.find((it) => it.id === id)
-          if (picked && !picked.isDummy) {
+          if (picked) {
             onSelectItem(picked)
           }
         }
@@ -460,7 +434,6 @@ export function TestimonialHero({ firebaseConfigured }: Props) {
     const q = query(
       collection(db, 'testimonials'),
       orderBy('createdAt', 'desc'),
-      limit(DUMMY_COUNT),
     )
     return onSnapshot(q, (snap) => {
       setReals(
@@ -484,15 +457,18 @@ export function TestimonialHero({ firebaseConfigured }: Props) {
     })
   }, [firebaseConfigured])
 
-  const display = useMemo(() => mergeWithDummies(reals), [reals])
-
   const rowChunks = useMemo(
-    () => splitIntoRows(display, Math.max(1, Math.min(6, rows))),
-    [display, rows],
+    () =>
+      Array.from({ length: Math.max(1, Math.min(6, rows)) }, (_, rowIndex) =>
+        offsetForRow(reals, rowIndex),
+      ),
+    [reals, rows],
   )
 
   const { cardWidth, gap, textClass } = layoutForRows(rows)
   const deckScale = rowDeckScale(rows)
+
+  if (reals.length === 0) return null
 
   return (
     <section
@@ -556,17 +532,16 @@ export function TestimonialHero({ firebaseConfigured }: Props) {
 
         <div className="flex h-[min(50vh,480px)] min-h-[200px] max-h-[480px] flex-col gap-0 overflow-hidden rounded-2xl border border-emerald-100/60 bg-white/30 shadow-inner ring-1 ring-stone-100/80">
           {rowChunks.map((rowItems, rowIndex) => {
-            const base = rowItems.length ? rowItems : display
             const reverse = rowIndex % 2 === 1
 
             return (
               <div
-                key={`${rowIndex}-${rows}-${base.length}`}
+                key={`${rowIndex}-${rows}-${rowItems.length}`}
                 className="relative flex min-h-0 flex-1 flex-col overflow-hidden border-b border-emerald-100/40 last:border-b-0"
                 style={{ zIndex: rowIndex + 1 }}
               >
                 <DraggableMarqueeRow
-                  items={base}
+                  items={rowItems}
                   reverse={reverse}
                   rowIndex={rowIndex}
                   cardWidth={cardWidth}
