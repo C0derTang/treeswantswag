@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /signatures/{userId} {
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['displayName', 'isRisingStudent', 'major', 'createdAt']);
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /stats/global {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+    }
+
+    match /testimonials/{userId} {
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && (request.auth.token.email.matches('.*@stanford\\.edu$')
+            || request.auth.token.email == 'tangchristopher111@gmail.com');
+      allow read: if true;
+      allow update, delete: if request.auth != null
+        && request.auth.uid == userId
+        && (request.auth.token.email.matches('.*@stanford\\.edu$')
+            || request.auth.token.email == 'tangchristopher111@gmail.com');
+    }
+  }
+}
