@@ -49,10 +49,12 @@ function buildSeamlessLoop<T>(items: T[], cardWidth: number, gap: number, minWid
   return [...segment, ...segment]
 }
 
-function layoutForRows(rowCount: number): { cardWidth: number; gap: number; textClass: string } {
-  const cardWidth = Math.max(112, 232 - (rowCount - 1) * 22)
-  const gap = Math.max(6, Math.min(28, 26 - (rowCount - 1) * 3))
-  const textClass = rowCount >= 5 ? 'text-[11px]' : rowCount >= 3 ? 'text-xs' : 'text-sm'
+function layoutForRows(rowCount: number, isMobile: boolean): { cardWidth: number; gap: number; textClass: string } {
+  const base = isMobile ? 160 : 232
+  const step = isMobile ? 14 : 22
+  const cardWidth = Math.max(isMobile ? 90 : 112, base - (rowCount - 1) * step)
+  const gap = Math.max(4, Math.min(isMobile ? 12 : 28, (isMobile ? 12 : 26) - (rowCount - 1) * 3))
+  const textClass = rowCount >= 5 ? 'text-[10px]' : rowCount >= 3 ? 'text-[11px]' : isMobile ? 'text-xs' : 'text-sm'
   return { cardWidth, gap, textClass }
 }
 
@@ -108,39 +110,41 @@ function TestimonialLightbox({
         aria-labelledby="testimonial-lightbox-title"
         className="relative z-10 flex max-h-[min(90vh,820px)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-[0_32px_64px_-16px_rgba(15,40,30,0.35)] ring-1 ring-stone-100"
       >
-        <div className="relative aspect-[4/3] w-full shrink-0 bg-stone-100 sm:aspect-[16/10]">
-          {item.photoDataUrl ? (
-            <img
-              src={item.photoDataUrl}
-              alt=""
-              className="h-full w-full object-cover object-center"
-            />
-          ) : null}
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-lg text-stone-600 shadow-md ring-1 ring-stone-200/80 transition hover:bg-white hover:text-stone-900"
-            aria-label="Close"
-          >
-            &times;
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-5 sm:px-8 sm:pb-8">
-          <h3
-            id="testimonial-lightbox-title"
-            className="font-display text-2xl font-semibold text-stone-900 sm:text-3xl"
-          >
-            {item.displayName}
-          </h3>
-          <p className="mt-1 text-sm font-medium text-cardinal sm:text-base">{majorLabel}</p>
-          {item.quote.trim().length > 0 ? (
-            <blockquote className="mt-5 border-l-4 border-cardinal/25 pl-4 text-base leading-relaxed text-stone-700 sm:text-lg">
-              &ldquo;{item.quote}&rdquo;
-            </blockquote>
-          ) : (
-            <p className="mt-5 text-sm italic text-stone-400">No quote on file.</p>
-          )}
+        <button
+          ref={closeRef}
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-lg text-stone-600 shadow-md ring-1 ring-stone-200/80 transition hover:bg-white hover:text-stone-900"
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="relative max-h-[35vh] w-full shrink-0 bg-stone-100 sm:max-h-[45vh]">
+            {item.photoDataUrl ? (
+              <img
+                src={item.photoDataUrl}
+                alt=""
+                className="h-full max-h-[35vh] w-full object-cover object-center sm:max-h-[45vh]"
+              />
+            ) : null}
+          </div>
+          <div className="px-5 pb-6 pt-4 sm:px-8 sm:pb-8 sm:pt-5">
+            <h3
+              id="testimonial-lightbox-title"
+              className="font-display text-xl font-semibold text-stone-900 sm:text-3xl"
+            >
+              {item.displayName}
+            </h3>
+            <p className="mt-1 text-sm font-medium text-cardinal sm:text-base">{majorLabel}</p>
+            {item.quote.trim().length > 0 ? (
+              <blockquote className="mt-4 border-l-4 border-cardinal/25 pl-4 text-sm leading-relaxed text-stone-700 sm:mt-5 sm:text-lg">
+                &ldquo;{item.quote}&rdquo;
+              </blockquote>
+            ) : (
+              <p className="mt-4 text-sm italic text-stone-400">No quote on file.</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -375,10 +379,9 @@ function DraggableMarqueeRow({
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      className={`testimonial-row group relative mx-auto h-full min-h-0 w-full max-w-full overflow-hidden [perspective:2000px] ${
+      className={`testimonial-row group relative mx-auto h-full min-h-0 w-full max-w-full overflow-hidden [perspective:2000px] touch-none ${
         dragging ? 'cursor-grabbing' : 'cursor-grab'
       }`}
-      style={{ touchAction: dragging ? 'none' : 'pan-x' }}
     >
       <div
         className="flex h-full min-h-0 w-full max-w-full items-center justify-center overflow-hidden"
@@ -420,6 +423,17 @@ export function TestimonialHero({ firebaseConfigured }: Props) {
   const [reals, setReals] = useState<TestimonialItem[]>([])
   const [rows, setRows] = useState(1)
   const [lightboxItem, setLightboxItem] = useState<TestimonialItem | null>(null)
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false,
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    setIsMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   const openLightbox = useCallback((item: TestimonialItem) => {
     setLightboxItem(item)
@@ -457,15 +471,18 @@ export function TestimonialHero({ firebaseConfigured }: Props) {
     })
   }, [firebaseConfigured])
 
+  const maxRows = isMobile ? 3 : 6
+  const clampedRows = Math.max(1, Math.min(maxRows, rows))
+
   const rowChunks = useMemo(
     () =>
-      Array.from({ length: Math.max(1, Math.min(6, rows)) }, (_, rowIndex) =>
+      Array.from({ length: clampedRows }, (_, rowIndex) =>
         offsetForRow(reals, rowIndex),
       ),
-    [reals, rows],
+    [reals, clampedRows],
   )
 
-  const { cardWidth, gap, textClass } = layoutForRows(rows)
+  const { cardWidth, gap, textClass } = layoutForRows(rows, isMobile)
   const deckScale = rowDeckScale(rows)
 
   if (reals.length === 0) return null
@@ -521,8 +538,8 @@ export function TestimonialHero({ firebaseConfigured }: Props) {
               <button
                 type="button"
                 className="rounded-full px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 disabled:opacity-40"
-                disabled={rows >= 6}
-                onClick={() => setRows((r) => Math.min(6, r + 1))}
+                disabled={rows >= maxRows}
+                onClick={() => setRows((r) => Math.min(maxRows, r + 1))}
               >
                 +
               </button>
@@ -530,7 +547,7 @@ export function TestimonialHero({ firebaseConfigured }: Props) {
           </div>
         </div>
 
-        <div className="flex h-[min(50vh,480px)] min-h-[200px] max-h-[480px] flex-col gap-0 overflow-hidden rounded-2xl border border-emerald-100/60 bg-white/30 shadow-inner ring-1 ring-stone-100/80">
+        <div className="flex h-[min(40vh,320px)] min-h-[160px] max-h-[320px] flex-col gap-0 overflow-hidden rounded-2xl border border-emerald-100/60 bg-white/30 shadow-inner ring-1 ring-stone-100/80 sm:h-[min(50vh,480px)] sm:min-h-[200px] sm:max-h-[480px]">
           {rowChunks.map((rowItems, rowIndex) => {
             const reverse = rowIndex % 2 === 1
 
