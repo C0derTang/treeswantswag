@@ -14,15 +14,9 @@ service cloud.firestore {
     }
 
     match /testimonials/{userId} {
-      allow create: if request.auth != null
-        && request.auth.uid == userId
-        && (request.auth.token.email.matches('.*@stanford\\.edu$')
-            || request.auth.token.email == 'tangchristopher111@gmail.com');
+      allow create: if request.auth != null && request.auth.uid == userId;
       allow read: if true;
-      allow update, delete: if request.auth != null
-        && request.auth.uid == userId
-        && (request.auth.token.email.matches('.*@stanford\\.edu$')
-            || request.auth.token.email == 'tangchristopher111@gmail.com');
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

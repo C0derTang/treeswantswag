@@ -8,15 +8,7 @@ type Props = {
   onSuccess: () => void
 }
 
-function canAddTestimonial(email: string | null): boolean {
-  if (!email) return false
-  const lower = email.toLowerCase()
-  return lower.endsWith('@stanford.edu') || lower === 'tangchristopher111@gmail.com'
-}
-
 export function PetitionForm({ user, onSuccess }: Props) {
-  const testimonialAllowed = canAddTestimonial(user.email)
-
   const [displayName, setDisplayName] = useState(
     user.displayName?.split(' ').slice(0, 2).join(' ') ?? '',
   )
@@ -54,7 +46,7 @@ export function PetitionForm({ user, onSuccess }: Props) {
     const hasQuote = quote.trim().length > 0
     const hasPhoto = Boolean(photoPreview && photoPreview.length > 0)
 
-    if (testimonialAllowed && isRising && (hasQuote !== hasPhoto)) {
+    if (isRising && (hasQuote !== hasPhoto)) {
       setError('For a testimonial, include both a photo and a quote (or leave both empty).')
       return
     }
@@ -66,7 +58,7 @@ export function PetitionForm({ user, onSuccess }: Props) {
         isRisingStudent: isRising,
         major: major.trim() || undefined,
         testimonial:
-          testimonialAllowed && isRising && hasPhoto && hasQuote && photoPreview
+          isRising && hasPhoto && hasQuote && photoPreview
             ? { photoDataUrl: photoPreview, quote: quote.trim() }
             : null,
       })
@@ -144,7 +136,7 @@ export function PetitionForm({ user, onSuccess }: Props) {
         />
       </div>
 
-      {isRising === true && testimonialAllowed && (
+      {isRising === true && (
         <div className="space-y-4 rounded-2xl border border-emerald-200/80 bg-backing-mist/60 p-4 ring-1 ring-emerald-100/80">
           <p className="text-sm text-stone-600">
             Optional: add a public testimonial with your face and a short quote. Leave both
