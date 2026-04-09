@@ -5,6 +5,7 @@ import { hasSigned } from './lib/petition'
 import { CanopyBackground } from './components/CanopyBackground'
 import { GlassPanel } from './components/GlassPanel'
 import { PetitionForm } from './components/PetitionForm'
+import { TestimonialManager } from './components/TestimonialManager'
 import { StatsChart } from './components/StatsChart'
 import { TestimonialHero } from './components/TestimonialHero'
 import type { User } from 'firebase/auth'
@@ -181,19 +182,22 @@ export default function App() {
               ) : checking ? (
                 <p className="text-center text-stone-500">Checking your signature&hellip;</p>
               ) : signed ? (
-                <GlassPanel className="p-8 text-center md:p-10">
-                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl font-bold text-emerald-700">
-                    &#10003;
-                  </div>
-                  <h2 className="font-display text-2xl font-semibold text-stone-900">
-                    You&rsquo;re on the list!
-                  </h2>
-                  <p className="mx-auto mt-3 max-w-md text-stone-600">
-                    Thanks for signing{user.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.
-                    Your voice is counted in the tally below.
-                    Share this page with your future classmates!
-                  </p>
-                </GlassPanel>
+                <div className="space-y-6">
+                  <GlassPanel className="p-8 text-center md:p-10">
+                    <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl font-bold text-emerald-700">
+                      &#10003;
+                    </div>
+                    <h2 className="font-display text-2xl font-semibold text-stone-900">
+                      You&rsquo;re on the list!
+                    </h2>
+                    <p className="mx-auto mt-3 max-w-md text-stone-600">
+                      Thanks for signing{user.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.
+                      Your voice is counted in the tally below.
+                      Share this page with your future classmates!
+                    </p>
+                  </GlassPanel>
+                  <TestimonialManager user={user} />
+                </div>
               ) : (
                 <PetitionForm user={user} onSuccess={() => setSigned(true)} />
               )}
